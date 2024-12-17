@@ -14,6 +14,8 @@ import {
   setSuggestions, 
   setSearchActive 
 } from '../../store/search/actions'
+import { User, Search, PickedUp, Close, Target } from '@nutui/icons-react-taro'
+import { IconFont } from '@nutui/icons-react-taro'
 
 interface Location {
   latitude: number
@@ -217,7 +219,7 @@ const SearchBar = () => {
   const statusBarHeight = windowInfo.statusBarHeight || 20
   const menuButtonPadding = menuButtonInfo.top - statusBarHeight
 
-  // 修改搜索建议的数据结构和模拟数据
+  // 修��搜索建议的数据结构和模拟数据
   const mockSuggestions: SearchSuggestion[] = [
     // 热门目的地
     { id: '1', text: '东京', subText: '日本最大都市', icon: '📍', type: 'location' },
@@ -238,7 +240,7 @@ const SearchBar = () => {
     { id: '12', text: '富士山', subText: '自然景观探索', icon: '⛰️', type: 'activity' }
   ]
   
-  // 处理输入变化
+  // ���理输入变化
   const handleInput = (e: any) => {
     const value = e.detail.value
     dispatch(setKeyword(value))
@@ -335,10 +337,12 @@ const SearchBar = () => {
               style={{ 
                 color: '#2D2D2D',
                 fontSize: '16px',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                display: 'flex',
+                justifyContent: 'center'
               }}
             >
-              🔍
+              <IconFont fontClassName="iconfont" classPrefix="icon" name="RectangleCopy" size={16} />
             </View>
             <Input
               style={{ 
@@ -608,6 +612,13 @@ const handleSearch = (keyword: string) => {
   })
 }
 
+// 修改导航函数
+const handleNavigateToMine = () => {
+  Taro.navigateTo({
+    url: '../mine/index'
+  })
+}
+
 // 分类数据移到组部
 export default function Index() {
   // 分类数据
@@ -739,6 +750,24 @@ export default function Index() {
     getCurrentLocation()
   }, [])
 
+  // 添加分享方法
+  Taro.useShareAppMessage(() => {
+    return {
+      title: '发现身边好去处',
+      path: '/pages/index/index',
+      imageUrl: 'https://example.com/share-image.jpg' // 替换为实际的分享图片
+    }
+  })
+
+  // 添加分享到朋友圈
+  Taro.useShareTimeline(() => {
+    return {
+      title: '发现身边好去处',
+      query: '',
+      imageUrl: 'https://example.com/share-image.jpg' // 替换为实际的分享图片
+    }
+  })
+
   return (
     <View className='index' style={{ background: '#FFFAF0' }}>
       {loading ? (
@@ -758,11 +787,10 @@ export default function Index() {
             color: '#2D2D2D',
             fontSize: '16px',
             fontWeight: 'bold',
-            border: '2px solid #2D2D2D',
             padding: '12px 24px',
             borderRadius: '24px',
             background: '#FFFFFF',
-            boxShadow: '4px 4px 0 #2D2D2D'
+            border: '2px solid #2D2D2D'
           }}>定位中...</View>
         </View>
       ) : (
@@ -784,32 +812,32 @@ export default function Index() {
       
       <SearchBar />
       
-      {/* 修改发布按钮的 zIndex */}
+      {/* 修改发布按钮为我的按钮 */}
       <View 
-        onClick={handleNavigateToPost}
+        onClick={handleNavigateToMine}
         style={{
           position: 'fixed',
           right: '20px',
           top: `${(windowInfo?.statusBarHeight || 20) + 120}px`,
           width: '48px',
           height: '48px',
-          background: '#FF4B4B',
+          background: '#FFFFFF',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           border: '2px solid #2D2D2D',
-          boxShadow: '3px 3px 0 #2D2D2D',
           zIndex: 89,
           transition: 'all 0.2s ease'
         }}
       >
         <View style={{ 
           fontSize: '24px', 
-          color: 'white',
+          color: '#2D2D2D',
+          // paddingTop: '5px',
           lineHeight: 1
         }}>
-          ✏️
+         <IconFont fontClassName="iconfont" classPrefix="icon" name="/assets/images/account.png" size={28} />
         </View>
       </View>
 
@@ -954,11 +982,11 @@ export default function Index() {
                     }}
                     style={{
                       fontSize: '20px',
-                      color: '#FF4B4B',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      marginRight: '4px'
                     }}
                   >
-                    📍
+                    <IconFont fontClassName="iconfont" classPrefix="icon" name="dingwei" size={28} />
                   </View>
                 </View>
 
@@ -1030,7 +1058,6 @@ export default function Index() {
           alignItems: 'center',
           justifyContent: 'center',
           border: '2px solid #2D2D2D',
-          boxShadow: '3px 3px 0 #2D2D2D',
           zIndex: 89,
           transition: 'all 0.2s ease'
         }}
@@ -1039,7 +1066,7 @@ export default function Index() {
           fontSize: '24px',
           lineHeight: 1
         }}>
-          🎯
+          <IconFont fontClassName="iconfont" classPrefix="icon" name="a-appround25" size={28} />
         </View>
       </View>
     </View>

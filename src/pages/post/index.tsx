@@ -1,47 +1,71 @@
-import { View, Input, Textarea, Button, Image, ScrollView } from '@tarojs/components'
+import { View, Input, Textarea, Picker } from '@tarojs/components'
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
-import { getEnv, ENV_TYPE } from '@tarojs/taro'
 import React from 'react'
-import { LocationIcon, PlusIcon, CloseIcon } from '../../components/Icons'
 
 interface PostForm {
   title: string
   content: string
+  location: {
+    name: string
+    address: string
+    latitude: number
+    longitude: number
+  } | null
   images: string[]
   tags: string[]
-  location?: string
+  timeSlots: string[]
 }
 
-// 预设标签列表
-const PRESET_TAGS = [
-  '美食探店',
-  '网红打卡',
-  '约会圣地',
-  '家庭亲子',
-  '休闲娱乐',
-  '文艺小资',
-  '深夜食堂',
-  '早午餐'
-]
-
 export default function Post() {
-  // 使用新的 API 获取窗口信息
-  const windowInfo = Taro.getWindowInfo()
-  const menuButtonInfo = Taro.getMenuButtonBoundingClientRect()
-  const statusBarHeight = windowInfo.statusBarHeight || 20
+  // 获取系统信息
+  const [systemInfo] = useState(() => Taro.getSystemInfoSync())
+  const safeAreaTop = systemInfo?.safeArea?.top || 0
+  const safeAreaBottom = systemInfo?.safeArea?.bottom ? (systemInfo.windowHeight - systemInfo.safeArea.bottom) : 34
 
+  // 表单状态
   const [form, setForm] = useState<PostForm>({
     title: '',
     content: '',
+    location: null,
     images: [],
-    tags: []
+    tags: [],
+    timeSlots: []
   })
 
-  const [customTag, setCustomTag] = useState('')  // 添加自定义标签输入状态
-  const [isAddingTag, setIsAddingTag] = useState(false)  // 添加标签输入状态
+  // 可选标签列表
+  const availableTags = ['咖啡', '美食', '探店', '购物', '娱乐', '文化']
 
-  // 选择片
+  // 添加自定义标签输入状态
+  const [customTagInput, setCustomTagInput] = useState('')
+
+  // 修改时间段输入状态的类型
+  const [timeSlotInput, setTimeSlotInput] = useState({
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: ''
+  })
+
+  // 选择位置
+  const handleChooseLocation = async () => {
+    try {
+      const res = await Taro.chooseLocation()
+      setForm(prev => ({
+        ...prev,
+        location: {
+          name: res.name,
+          address: res.address,
+          latitude: res.latitude,
+          longitude: res.longitude
+        }
+      }))
+    } catch (error) {
+      console.error('选择位置失败:', error)
+    }
+  }
+
+  // 选择图片
   const handleChooseImage = async () => {
     try {
       const res = await Taro.chooseImage({
@@ -49,13 +73,12 @@ export default function Post() {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera']
       })
-      
       setForm(prev => ({
         ...prev,
         images: [...prev.images, ...res.tempFilePaths]
       }))
     } catch (error) {
-      console.log('选择图片失败', error)
+      console.error('选择图片失败:', error)
     }
   }
 
@@ -67,480 +90,687 @@ export default function Post() {
     }))
   }
 
-  // 处理发布
-  const handlePublish = async () => {
-    if (!form.title.trim()) {
-      Taro.showToast({ title: '请输入标题', icon: 'none' })
-      return
-    }
-    if (!form.content.trim()) {
-      Taro.showToast({ title: '请输入正文', icon: 'none' })
-      return
-    }
-    if (form.images.length === 0) {
-      Taro.showToast({ title: '请至少上传一张图片', icon: 'none' })
-      return
-    }
-
-    // TODO: 实现发布逻辑
-    Taro.showToast({
-      title: '发布成功',
-      icon: 'success',
-      duration: 2000,
-      complete: () => {
-        setTimeout(() => {
-          Taro.navigateBack()
-        }, 2000)
-      }
-    })
-  }
-
-  // 返回上一页
-  const handleBack = () => {
-    Taro.navigateBack()
-  }
-
-  // 处理标签选择
-  const handleTagToggle = (tag: string) => {
+  // 切换标签
+  const handleToggleTag = (tag: string) => {
     setForm(prev => {
-      const tags = prev.tags.includes(tag)
-        ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag]
-      return { ...prev, tags }
+      // 如果标签已存在，则移除
+      if (prev.tags.includes(tag)) {
+        return {
+          ...prev,
+          tags: prev.tags.filter(t => t !== tag)
+        }
+      }
+      // 如果标签不存在且数量小于3，则添加
+      if (prev.tags.length < 3) {
+        return {
+          ...prev,
+          tags: [...prev.tags, tag]
+        }
+      }
+      // 如果已有3个标签，显示提示
+      Taro.showToast({
+        title: '最多选择3个标签',
+        icon: 'none'
+      })
+      return prev
     })
   }
 
-  // 处理自定义标签添加
+  // 添加自定义标签
   const handleAddCustomTag = () => {
-    if (!customTag.trim()) {
-      Taro.showToast({
-        title: '标签内容不能为空',
+    const tag = customTagInput.trim()
+    if (tag) {
+      if (form.tags.includes(tag)) {
+        Taro.showToast({
+          title: '标签已存在',
+          icon: 'none'
+        })
+      } else if (form.tags.length >= 3) {
+        Taro.showToast({
+          title: '最多选择3个标签',
+          icon: 'none'
+        })
+      } else {
+        setForm(prev => ({
+          ...prev,
+          tags: [...prev.tags, tag]
+        }))
+        setCustomTagInput('') // 清空输入
+      }
+    }
+  }
+
+  // 修改添加时间段的处理函数
+  const handleAddTimeSlot = () => {
+    const { startDate, startTime, endDate, endTime } = timeSlotInput
+    if (!startDate || !startTime || !endDate || !endTime) {
+      return Taro.showToast({
+        title: '请输入完整的时间段',
         icon: 'none'
       })
-      return
     }
 
-    if (form.tags.length >= 3) {
-      Taro.showToast({
-        title: '最多只能添加3个标签',
+    const timeSlot = `${startDate} ${startTime}-${endDate} ${endTime}`
+    if (form.timeSlots.includes(timeSlot)) {
+      return Taro.showToast({
+        title: '该时间段已存在',
         icon: 'none'
       })
-      return
     }
 
     setForm(prev => ({
       ...prev,
-      tags: [...prev.tags, customTag.trim()]
+      timeSlots: [...prev.timeSlots, timeSlot]
     }))
-    setCustomTag('')
-    setIsAddingTag(false)
+    setTimeSlotInput({ startDate: '', startTime: '', endDate: '', endTime: '' }) // 清空输入
   }
 
-  const handleChooseLocation = async () => {
-    try {
-      const res = await Taro.chooseLocation({
-        success: function (res) {
-          setForm(prev => ({
-            ...prev,
-            location: res.name
-          }))
-        }
+  // 删除时间段
+  const handleRemoveTimeSlot = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.filter((_, i) => i !== index)
+    }))
+  }
+
+  // 发布帖子
+  const handleSubmit = () => {
+    if (!form.title.trim()) {
+      return Taro.showToast({
+        title: '请输入标题',
+        icon: 'none'
       })
-    } catch (error) {
-      console.log('选择位置失败', error)
     }
+    if (!form.content.trim()) {
+      return Taro.showToast({
+        title: '请输入内容',
+        icon: 'none'
+      })
+    }
+    if (!form.location) {
+      return Taro.showToast({
+        title: '请选择位置',
+        icon: 'none'
+      })
+    }
+    
+    // TODO: 实现发布逻辑
+    console.log('发布帖子:', form)
+    Taro.showToast({
+      title: '发布成功',
+      icon: 'success'
+    })
+    setTimeout(() => {
+      Taro.navigateBack()
+    }, 1500)
   }
 
   return (
-    <View style={{ 
-      height: '100vh', 
+    <View style={{
+      // minHeight: '100vh',
       background: '#FFFAF0',
-      fontFamily: '"Hiragino Kaku Gothic ProN", sans-serif',
-      display: 'flex',
-      flexDirection: 'column'
+      paddingBottom: '20px',
+      paddingTop: `${safeAreaTop / 2}px`
     }}>
-      {/* 顶部导航栏 */}
-      <View style={{
-        paddingTop: `${statusBarHeight}px`,
-        background: '#FFFAF0',
-        borderBottom: '2px solid #2D2D2D'
-      }}>
+      {/* 内容区域 - 不再需要额外的顶部内边距 */}
+      <View>
+        {/* 图片上传 */}
         <View style={{
-          height: '44px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
+          margin: '0px 16px 16px',
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          border: '2px solid #2D2D2D',
+          padding: '16px'
         }}>
           <View style={{
-            fontSize: '18px',
+            fontSize: '14px',
             fontWeight: 'bold',
-            color: '#2D2D2D'
+            color: '#2D2D2D',
+            marginBottom: '12px'
           }}>
-            发布帖子
+            图片
           </View>
-        </View>
-      </View>
-
-      {/* 内容区域 */}
-      <ScrollView
-        scrollY
-        style={{
-          flex: 1,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)'
-        }}
-      >
-        <View style={{ padding: '12px' }}>
-          {/* 图片上传区域 */}
           <View style={{
-            marginBottom: '12px',
-            padding: '12px',
-            background: '#FFFFFF',
-            borderRadius: '12px',
-            border: '2px dashed #2D2D2D'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '8px'
           }}>
-            <View style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '8px',
-              width: '100%'
-            }}>
-              {form.images.map((image, index) => (
-                <View 
-                  key={index}
+            {form.images.map((image, index) => (
+              <View
+                key={index}
+                style={{ position: 'relative' }}
+              >
+                <Image
+                  src={image}
+                  mode='aspectFill'
                   style={{
-                    position: 'relative',
-                    width: 'calc((100% - 16px) / 3)',
-                    aspectRatio: '1',
+                    width: '100%',
+                    height: '100px',
                     borderRadius: '8px',
-                    overflow: 'hidden',
-                    border: '1px solid #2D2D2D'
+                    border: '2px solid #2D2D2D'
+                  }}
+                />
+                <View
+                  onClick={() => handleRemoveImage(index)}
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    right: '-8px',
+                    width: '24px',
+                    height: '24px',
+                    background: '#FF4B4B',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    fontSize: '16px',
+                    border: '2px solid #2D2D2D'
                   }}
                 >
-                  <Image
-                    src={image}
-                    mode='aspectFill'
-                    style={{
-                      width: '100%',
-                      height: '100%'
-                    }}
-                  />
+                  ×
+                </View>
+              </View>
+            ))}
+            {form.images.length < 9 && (
+              <View
+                onClick={handleChooseImage}
+                style={{
+                  width: '100%',
+                  height: '100px',
+                  background: '#F5F5F5',
+                  borderRadius: '8px',
+                  border: '2px dashed #2D2D2D',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  color: '#999'
+                }}
+              >
+                +
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* 标题输入 */}
+        <View style={{
+          margin: '16px',
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          border: '2px solid #2D2D2D',
+          padding: '16px'
+        }}>
+          <View style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#2D2D2D',
+            marginBottom: '12px'
+          }}>
+            标题
+          </View>
+          <Input
+            value={form.title}
+            onInput={e => setForm(prev => ({ ...prev, title: e.detail.value }))}
+            placeholder='添加标题'
+            placeholderStyle='color: #999'
+            style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#2D2D2D'
+            }}
+          />
+        </View>
+
+        {/* 内容输入 */}
+        <View style={{
+          margin: '16px',
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          border: '2px solid #2D2D2D',
+          padding: '16px'
+        }}>
+          <View style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#2D2D2D',
+            marginBottom: '12px'
+          }}>
+            内容
+          </View>
+          <Textarea
+            value={form.content}
+            onInput={e => setForm(prev => ({ ...prev, content: e.detail.value }))}
+            placeholder='分享你的发现...'
+            placeholderStyle='color: #999'
+            style={{
+              width: '100%',
+              minHeight: '120px',
+              fontSize: '16px',
+              color: '#333',
+              lineHeight: 1.6
+            }}
+          />
+        </View>
+
+        {/* 位置选择 */}
+        <View
+          onClick={handleChooseLocation}
+          style={{
+            margin: '16px',
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            border: '2px solid #2D2D2D',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}
+        >
+
+          {form.location ? (
+            <View style={{ flex: 1 }}>
+              <View style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#2D2D2D',
+                marginBottom: '4px'
+              }}>
+                {form.location.name}
+              </View>
+              <View style={{
+                fontSize: '14px',
+                color: '#666666'
+              }}>
+                {form.location.address}
+              </View>
+            </View>
+          ) : (
+            <View style={{
+              flex: 1,
+              fontSize: '16px',
+              color: '#999'
+            }}>
+              添加位置
+            </View>
+          )}
+        </View>
+
+        {/* 在线时间选择器 */}
+        <View style={{
+          margin: '16px',
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          border: '2px solid #2D2D2D',
+          padding: '16px'
+        }}>
+          <View style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#2D2D2D',
+            marginBottom: '12px'
+          }}>
+            在线时间
+          </View>
+          {/* 时间选择器 */}
+          <View style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            marginBottom: '16px'
+          }}>
+            {/* 开始时间 */}
+            <View style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <View style={{
+                fontSize: '14px',
+                color: '#666',
+                width: '60px'
+              }}>
+                开始
+              </View>
+              <Picker
+                mode='date'
+                value={timeSlotInput.startDate}
+                onChange={e => setTimeSlotInput(prev => ({ ...prev, startDate: e.detail.value }))}
+                style={{ flex: 1 }}
+              >
+                <View style={{
+                  fontSize: '14px',
+                  padding: '8px 12px',
+                  background: '#F5F5F5',
+                  borderRadius: '8px',
+                  border: '1.5px solid #2D2D2D',
+                  color: timeSlotInput.startDate ? '#333' : '#999'
+                }}>
+                  {timeSlotInput.startDate || '选择日期'}
+                </View>
+              </Picker>
+              <Picker
+                mode='time'
+                value={timeSlotInput.startTime}
+                onChange={e => setTimeSlotInput(prev => ({ ...prev, startTime: e.detail.value }))}
+                style={{ flex: 1 }}
+              >
+                <View style={{
+                  fontSize: '14px',
+                  padding: '8px 12px',
+                  background: '#F5F5F5',
+                  borderRadius: '8px',
+                  border: '1.5px solid #2D2D2D',
+                  color: timeSlotInput.startTime ? '#333' : '#999'
+                }}>
+                  {timeSlotInput.startTime || '选择时间'}
+                </View>
+              </Picker>
+            </View>
+
+            {/* 结束时间 */}
+            <View style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <View style={{
+                fontSize: '14px',
+                color: '#666',
+                width: '60px'
+              }}>
+                结束
+              </View>
+              <Picker
+                mode='date'
+                value={timeSlotInput.endDate}
+                onChange={e => setTimeSlotInput(prev => ({ ...prev, endDate: e.detail.value }))}
+                style={{ flex: 1 }}
+              >
+                <View style={{
+                  fontSize: '14px',
+                  padding: '8px 12px',
+                  background: '#F5F5F5',
+                  borderRadius: '8px',
+                  border: '1.5px solid #2D2D2D',
+                  color: timeSlotInput.endDate ? '#333' : '#999'
+                }}>
+                  {timeSlotInput.endDate || '选择日期'}
+                </View>
+              </Picker>
+              <Picker
+                mode='time'
+                value={timeSlotInput.endTime}
+                onChange={e => setTimeSlotInput(prev => ({ ...prev, endTime: e.detail.value }))}
+                style={{ flex: 1 }}
+              >
+                <View style={{
+                  fontSize: '14px',
+                  padding: '8px 12px',
+                  background: '#F5F5F5',
+                  borderRadius: '8px',
+                  border: '1.5px solid #2D2D2D',
+                  color: timeSlotInput.endTime ? '#333' : '#999'
+                }}>
+                  {timeSlotInput.endTime || '选择时间'}
+                </View>
+              </Picker>
+            </View>
+
+            {/* 添加按钮 */}
+            <View
+              onClick={handleAddTimeSlot}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                border: '1.5px solid #2D2D2D',
+                background: '#FFE4CC',
+                fontSize: '14px',
+                color: '#2D2D2D',
+                textAlign: 'center'
+              }}
+            >
+              添加时间段
+            </View>
+          </View>
+
+          {/* 已添加的时间段列表 */}
+          {form.timeSlots.length > 0 && (
+            <View style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              {form.timeSlots.map((timeSlot, index) => (
+                <View
+                  key={index}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #2D2D2D',
+                    background: '#F0FFF0',
+                    fontSize: '14px',
+                    color: '#2D2D2D',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <View style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <View>{timeSlot}</View>
+                  </View>
                   <View
-                    onClick={() => handleRemoveImage(index)}
+                    onClick={() => handleRemoveTimeSlot(index)}
                     style={{
-                      position: 'absolute',
-                      top: '4px',
-                      right: '4px',
-                      width: '18px',
-                      height: '18px',
-                      background: 'rgba(0, 0, 0, 0.6)',
-                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '10px',
+                      background: '#FF4B4B',
+                      color: '#FFFFFF',
+                      fontSize: '14px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#FFFFFF',
-                      fontSize: '12px'
+                      border: '1.5px solid #2D2D2D'
                     }}
                   >
                     ×
                   </View>
                 </View>
               ))}
-              {form.images.length < 9 && (
-                <View
-                  onClick={handleChooseImage}
-                  style={{
-                    width: 'calc((100% - 16px) / 3)',
-                    aspectRatio: '1',
-                    background: '#F5F5F5',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    border: '1px dashed #2D2D2D'
-                  }}
-                >
-                  <View style={{ fontSize: '20px', color: '#666' }}>+</View>
-                  <View style={{ fontSize: '12px', color: '#666' }}>
-                    添加图片
-                  </View>
-                </View>
-              )}
+            </View>
+          )}
+        </View>
+
+        {/* 标签选择 */}
+        <View style={{
+          margin: '16px',
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          border: '2px solid #2D2D2D',
+          padding: '16px'
+        }}>
+          <View style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#2D2D2D',
+            marginBottom: '12px'
+          }}>
+            标签
+          </View>
+          {/* 自定义标签输入 */}
+          <View style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '12px'
+          }}>
+            <Input
+              value={customTagInput}
+              onInput={e => setCustomTagInput(e.detail.value)}
+              placeholder='添加自定义标签'
+              placeholderStyle='color: #999'
+              onConfirm={handleAddCustomTag}
+              style={{
+                flex: 1,
+                fontSize: '14px',
+                padding: '6px 12px',
+                background: '#F5F5F5',
+                borderRadius: '12px',
+                border: '2px solid #2D2D2D'
+              }}
+            />
+            <View
+              onClick={handleAddCustomTag}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '12px',
+                border: '2px solid #2D2D2D',
+                background: '#FFE4CC',
+                fontSize: '14px',
+                color: '#2D2D2D'
+              }}
+            >
+              添加
             </View>
           </View>
 
-          {/* 标题输入框 */}
+          {/* 已选标签展示 */}
           <View style={{
-            marginBottom: '12px',
-            background: '#FFFFFF',
-            borderRadius: '12px',
-            border: '2px solid #2D2D2D',
-            padding: '4px'
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px'
           }}>
-            <Input 
-              style={{
-                fontSize: '20px',
-                width: '100%',
-                padding: '12px',
-                color: '#2D2D2D',
-                fontFamily: '"Hiragino Kaku Gothic ProN", sans-serif',
-                fontWeight: '500',
-                background: 'transparent',
-                border: 'none'
-              }}
-              placeholderStyle={{
-                color: '#999',
-                fontSize: '16px',
-                fontWeight: 'normal'
-              }}
-              placeholder='添加标题会获得更多赞哦'
-              value={form.title}
-              onInput={e => setForm(prev => ({ ...prev, title: e.detail.value }))}
-              maxlength={30}
-            />
-          </View>
+            {/* 推荐标签 */}
+            {availableTags.map(tag => (
+              <View
+                key={tag}
+                onClick={() => handleToggleTag(tag)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  border: '2px solid #2D2D2D',
+                  background: form.tags.includes(tag) ? '#FFE4CC' : '#FFFFFF',
+                  fontSize: '14px',
+                  color: '#2D2D2D',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <View>{tag}</View>
+                {form.tags.includes(tag) && (
+                  <View
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleTag(tag)
+                    }}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '8px',
+                      background: '#FF4B4B',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1.5px solid #2D2D2D'
+                    }}
+                  >
+                    ×
+                  </View>
+                )}
+              </View>
+            ))}
 
-          {/* 内容输入框 */}
-          <Textarea
-            style={{
-              width: '100%',
-              minHeight: '120px',
-              fontSize: '16px',
-              lineHeight: '1.5',
-              padding: '12px 16px',
-              background: '#FFFFFF',
-              borderRadius: '12px',
-              border: '2px solid #2D2D2D',
-              marginBottom: '12px',
-              boxSizing: 'border-box',
-              color: '#2D2D2D',
-              fontFamily: '"Hiragino Kaku Gothic ProN", sans-serif'
-            }}
-            placeholderStyle={{
-              color: '#999',
-              fontSize: '14px'
-            }}
-            placeholder='分享你的故事...'
-            value={form.content}
-            onInput={e => setForm(prev => ({ ...prev, content: e.detail.value }))}
-            maxlength={1000}
-          />
-
-          {/* 标签区域 */}
-          <View style={{
-            marginBottom: '12px'
-          }}>
-            <View style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '8px',
-              marginBottom: '8px'
-            }}>
-              {form.tags.map((tag, index) => (
+            {/* 自定义标签 */}
+            {form.tags
+              .filter(tag => !availableTags.includes(tag))
+              .map(tag => (
                 <View
-                  key={index}
-                  onClick={() => {
-                    setForm(prev => ({
-                      ...prev,
-                      tags: prev.tags.filter((_, i) => i !== index)
-                    }))
-                  }}
+                  key={tag}
                   style={{
                     padding: '6px 12px',
                     borderRadius: '12px',
-                    fontSize: '12px',
-                    background: '#FF4B4B',
-                    color: 'white',
-                    border: '1.5px solid #2D2D2D',
+                    border: '2px solid #2D2D2D',
+                    background: '#FFE4CC',
+                    fontSize: '14px',
+                    color: '#2D2D2D',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px'
                   }}
                 >
-                  {tag}
-                  <View style={{ fontSize: '14px' }}>×</View>
-                </View>
-              ))}
-              {form.tags.length < 3 && (
-                <View
-                  onClick={() => setIsAddingTag(true)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    background: '#F5F5F5',
-                    color: '#666',
-                    border: '1.5px solid #2D2D2D'
-                  }}
-                >
-                  + 添加标签
-                </View>
-              )}
-            </View>
-
-            {/* 预设标签列表 */}
-            {!isAddingTag && form.tags.length < 3 && (
-              <View style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}>
-                {PRESET_TAGS.filter(tag => !form.tags.includes(tag)).map((tag, index) => (
+                  <View>{tag}</View>
                   <View
-                    key={index}
-                    onClick={() => handleTagToggle(tag)}
+                    onClick={() => handleToggleTag(tag)}
                     style={{
-                      padding: '6px 12px',
-                      borderRadius: '12px',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '8px',
+                      background: '#FF4B4B',
+                      color: '#FFFFFF',
                       fontSize: '12px',
-                      background: '#F5F5F5',
-                      color: '#666',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       border: '1.5px solid #2D2D2D'
                     }}
                   >
-                    {tag}
+                    ×
                   </View>
-                ))}
-              </View>
-            )}
-
-            {/* 自定义标签输入 */}
-            {isAddingTag && (
-              <View style={{
-                display: 'flex',
-                gap: '8px',
-                marginTop: '8px'
-              }}>
-                <Input
-                  style={{
-                    flex: 1,
-                    fontSize: '14px',
-                    padding: '6px 12px',
-                    background: '#FFFFFF',
-                    borderRadius: '12px',
-                    border: '1.5px solid #2D2D2D'
-                  }}
-                  placeholder='输入自定义标签'
-                  value={customTag}
-                  onInput={e => setCustomTag(e.detail.value)}
-                  focus
-                  maxlength={10}
-                  onBlur={() => {
-                    if (!customTag.trim()) {
-                      setIsAddingTag(false)
-                    }
-                  }}
-                />
-                <View
-                  onClick={handleAddCustomTag}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    background: customTag.trim() ? '#FF4B4B' : '#F5F5F5',
-                    color: customTag.trim() ? 'white' : '#666',
-                    border: '1.5px solid #2D2D2D'
-                  }}
-                >
-                  添加
                 </View>
-              </View>
-            )}
-          </View>
-
-          {/* 位置选择 */}
-          <View
-            onClick={handleChooseLocation}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 12px',
-              background: '#FFFFFF',
-              borderRadius: '12px',
-              border: '2px solid #2D2D2D'
-            }}
-          >
-            <View style={{ fontSize: '16px' }}>📍</View>
-            <View style={{ 
-              flex: 1,
-              fontSize: '14px',
-              color: form.location ? '#2D2D2D' : '#999'
-            }}>
-              {form.location || '添加位置'}
-            </View>
-            {form.location && (
-              <View
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setForm(prev => ({ ...prev, location: undefined }))
-                }}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: '#F5F5F5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  color: '#666'
-                }}
-              >
-                ×
-              </View>
-            )}
+              ))}
           </View>
         </View>
-      </ScrollView>
+      </View>
 
-      {/* 底部操作栏 */}
+      {/* 底部固定按钮 */}
       <View style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: '12px',
-        paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+        padding: '16px',
         background: '#FFFAF0',
-        borderTop: '2px solid #2D2D2D',
+        borderTop: '1px solid #EAEAEA',
         display: 'flex',
         gap: '12px',
-        zIndex: 100
       }}>
+        {/* 取消按钮 */}
         <View
-          onClick={handleBack}
+          onClick={() => {
+            Taro.navigateBack()
+          }}
           style={{
             flex: 1,
-            height: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '22px',
+            padding: '12px',
             background: '#FFFFFF',
-            color: '#2D2D2D',
+            borderRadius: '12px',
+            border: '2px solid #2D2D2D',
+            textAlign: 'center',
             fontSize: '16px',
             fontWeight: 'bold',
-            border: '2px solid #2D2D2D'
+            color: '#2D2D2D'
           }}
         >
           取消
         </View>
+
+        {/* 发布按钮 */}
         <View
-          onClick={handlePublish}
+          onClick={handleSubmit}
           style={{
-            flex: 1,
-            height: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '22px',
+            flex: 2,
+            padding: '12px',
             background: '#FF4B4B',
-            color: 'white',
+            borderRadius: '12px',
+            border: '2px solid #2D2D2D',
+            textAlign: 'center',
             fontSize: '16px',
             fontWeight: 'bold',
-            border: '2px solid #2D2D2D'
+            color: '#FFFFFF'
           }}
         >
           发布
@@ -548,4 +778,12 @@ export default function Post() {
       </View>
     </View>
   )
-} 
+}
+
+// 添加页面配置
+definePageConfig({
+  navigationBarTitleText: '发布',
+  navigationBarBackgroundColor: '#FFFAF0',
+  navigationBarTextStyle: 'black',
+  backgroundColor: '#FFFAF0'
+}) 

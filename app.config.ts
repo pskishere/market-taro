@@ -1,10 +1,12 @@
 export default defineAppConfig({
   pages: [
     'pages/index/index',
-    'pages/post-detail/index',
     'pages/post/index',
+    'pages/post-detail/index',
     'pages/search-result/index',
-    'pages/mine/index'
+    'pages/mine/index',
+    'pages/message/index',
+    'pages/my-posts/index'
   ],
   window: {
     backgroundTextStyle: 'light',
@@ -15,8 +17,8 @@ export default defineAppConfig({
   requiredPrivateInfos: [
     'getLocation',
     'chooseLocation',
-    'chooseImage',
-    'camera'
+    'chooseAddress',
+    'chooseMedia'
   ],
   permission: {
     'scope.userLocation': {
@@ -30,26 +32,6 @@ export default defineAppConfig({
       'CAMERA',
       'READ_EXTERNAL_STORAGE',
       'WRITE_EXTERNAL_STORAGE'
-    ]
-  },
-  tabBar: {
-    color: '#999',
-    selectedColor: '#333',
-    backgroundColor: '#fff',
-    borderStyle: 'black',
-    list: [
-      {
-        pagePath: 'pages/index/index',
-        text: '首页',
-        iconPath: 'assets/icons/home.png',
-        selectedIconPath: 'assets/icons/home-active.png'
-      },
-      {
-        pagePath: 'pages/mine/index',
-        text: '我的',
-        iconPath: 'assets/icons/user.png',
-        selectedIconPath: 'assets/icons/user-active.png'
-      }
     ]
   }
 }) 

@@ -1,0 +1,128 @@
+{
+  "id": "4298506",
+  "name": "weMini",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "40728399",
+      "name": "帐户",
+      "font_class": "a-appround4",
+      "unicode": "e92d",
+      "unicode_decimal": 59693
+    },
+    {
+      "icon_id": "40728418",
+      "name": "导航",
+      "font_class": "a-appround25",
+      "unicode": "e931",
+      "unicode_decimal": 59697
+    },
+    {
+      "icon_id": "7549370",
+      "name": "目标",
+      "font_class": "RectangleCopy2",
+      "unicode": "e6a6",
+      "unicode_decimal": 59046
+    },
+    {
+      "icon_id": "7549836",
+      "name": "对话",
+      "font_class": "RectangleCopy16",
+      "unicode": "e6b3",
+      "unicode_decimal": 59059
+    },
+    {
+      "icon_id": "7549348",
+      "name": "搜索",
+      "font_class": "RectangleCopy",
+      "unicode": "e6a2",
+      "unicode_decimal": 59042
+    },
+    {
+      "icon_id": "7549350",
+      "name": "用户",
+      "font_class": "RectangleCopy1",
+      "unicode": "e6a3",
+      "unicode_decimal": 59043
+    },
+    {
+      "icon_id": "7549816",
+      "name": "商品",
+      "font_class": "RectangleCopy3",
+      "unicode": "e6a7",
+      "unicode_decimal": 59047
+    },
+    {
+      "icon_id": "7549822",
+      "name": "采购",
+      "font_class": "RectangleCopy4",
+      "unicode": "e6a8",
+      "unicode_decimal": 59048
+    },
+    {
+      "icon_id": "7549827",
+      "name": "发布",
+      "font_class": "RectangleCopy5",
+      "unicode": "e6a9",
+      "unicode_decimal": 59049
+    },
+    {
+      "icon_id": "7549831",
+      "name": "删除",
+      "font_class": "RectangleCopy6",
+      "unicode": "e6aa",
+      "unicode_decimal": 59050
+    },
+    {
+      "icon_id": "7549832",
+      "name": "券",
+      "font_class": "RectangleCopy7",
+      "unicode": "e6ab",
+      "unicode_decimal": 59051
+    },
+    {
+      "icon_id": "7549840",
+      "name": "活动",
+      "font_class": "RectangleCopy8",
+      "unicode": "e6ac",
+      "unicode_decimal": 59052
+    },
+    {
+      "icon_id": "7549843",
+      "name": "图片",
+      "font_class": "RectangleCopy9",
+      "unicode": "e6ad",
+      "unicode_decimal": 59053
+    },
+    {
+      "icon_id": "7549850",
+      "name": "配置",
+      "font_class": "RectangleCopy10",
+      "unicode": "e6ae",
+      "unicode_decimal": 59054
+    },
+    {
+      "icon_id": "7550034",
+      "name": "货",
+      "font_class": "RectangleCopy12",
+      "unicode": "e6b0",
+      "unicode_decimal": 59056
+    },
+    {
+      "icon_id": "7562286",
+      "name": "定位",
+      "font_class": "dingwei",
+      "unicode": "e6ea",
+      "unicode_decimal": 59114
+    },
+    {
+      "icon_id": "7733537",
+      "name": "物流",
+      "font_class": "RectangleCopy14",
+      "unicode": "e6eb",
+      "unicode_decimal": 59115
+    }
+  ]
+}
